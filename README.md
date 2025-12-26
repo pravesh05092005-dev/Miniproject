@@ -95,7 +95,7 @@ The architecture consists of a frontend interface, backend server, AI analysis e
 #### Output1 -  Login Page
 
 - This screen allows users to securely log in or register before accessing the NexusGit platform.
-<img width="1400" height="800" alt="NexusGit_Login_Page" src="https://github.com/user-attachments/assets/fb98a193-e9be-40ba-ba7c-9f3274a1c048" />
+
 
 
 #### Output2 - Developer Dashboard
@@ -134,174 +134,521 @@ The project demonstrates the practical application of AI in software engineering
 
 4.GitHub REST API Documentation
 
-## 1️⃣ index.html (Frontend – Detailed):
-```xml
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>NexusGit</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+## 1️. REPOSITORY SERVICE :
+### PageController
+```java
+package com.nexusgit.repository.controller;
 
-<header class="navbar">
-    <h1>NexusGit</h1>
-    <button onclick="logout()">Logout</button>
-</header>
+import com.nexusgit.repository.model.RepoFile;
+import com.nexusgit.repository.model.Repository;
+import com.nexusgit.repository.repository.RepositoryRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
 
-<div class="container">
-    <aside class="sidebar">
-        <ul>
-            <li>Dashboard</li>
-            <li>Repositories</li>
-            <li>Pull Requests</li>
-            <li>AI Reviews</li>
-            <li>Settings</li>
-        </ul>
-    </aside>
+import java.util.List;
 
-    <main class="content">
-        <h2>Developer Dashboard</h2>
+@Controller
+public class PageController {
 
-        <section class="card">
-            <h3>Your Repositories</h3>
-            <ul id="repoList">
-                <li>NexusGit-Backend</li>
-                <li>NexusGit-Frontend</li>
-                <li>AI-Review-Engine</li>
-            </ul>
-        </section>
+    @Autowired
+    private RepositoryRepository repositoryRepository; // <--- Real DB Connection
 
-        <section class="card">
-            <h3>Recent Pull Requests</h3>
-            <button onclick="requestAIReview()">Request AI Review</button>
-            <button onclick="viewReviews()">View Reviews</button>
-        </section>
-    </main>
-</div>
+    @GetMapping("/dashboard")
+    public String getDashboard(Model model) {
+        // Fetch REAL data from MongoDB
+        List<Repository> repoList = repositoryRepository.findAll();
 
-<script src="app.js"></script>
-<script src="auth.js"></script>
-<script src="aiReview.js"></script>
+        model.addAttribute("repositories", repoList);
+        return "dashboard";
+    }
+    // 1. Show the "Create Repo" form
+    @GetMapping("/create-repo")
+    public String showCreateRepoPage() {
+        return "create-repo"; // Loads create-repo.html
+    }
+    // 3. View Repository Details
+    // The "{id}" part is a variable (like a wildcard)
+    @GetMapping("/repo/{id}")
+    public String viewRepository(@PathVariable String id, Model model) {
 
-</body>
-</html>
+        // Find the repo in MongoDB by its ID
+        Repository repo = repositoryRepository.findById(id).orElse(null);
 
-```
-## 2️⃣ style.css (Professional UI Styling):
-```css
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background-color: #f1f5f9;
-}
+        // Pass it to the HTML
+        model.addAttribute("repository", repo);
 
-.navbar {
-    background-color: #020617;
-    color: white;
-    padding: 15px;
-    display: flex;
-    justify-content: space-between;
-}
+        return "repo-details";
+    }
+    // 4. View Specific File Content
+    @GetMapping("/repo/{repoId}/file/{filename}")
+    public String viewFile(@PathVariable String repoId,
+                           @PathVariable String filename,
+                           Model model) {
 
-.container {
-    display: flex;
-}
+        // 1. Find the Repository
+        Repository repo = repositoryRepository.findById(repoId).orElse(null);
 
-.sidebar {
-    width: 220px;
-    background-color: #0f172a;
-    min-height: 100vh;
-    color: white;
-}
+        if (repo != null) {
+            // 2. Find the specific file inside the repository's file list
+            for (com.nexusgit.repository.model.RepoFile file : repo.getFiles()) {
+                if (file.getFilename().equals(filename)) {
+                    // Found it! Send it to the view
+                    model.addAttribute("file", file);
+                    model.addAttribute("repo", repo); // Pass repo too, so we can go back
+                    return "view-file";
+                }
+            }
+        }
 
-.sidebar ul {
-    list-style: none;
-    padding: 20px;
-}
+        return "redirect:/dashboard"; // If not found, go home
+    }
+    // 5. Download File
+    @GetMapping("/repo/{repoId}/file/{filename}/download")
+    @ResponseBody // Tells Spring: "Don't look for an HTML file, return raw data"
+    public org.springframework.http.ResponseEntity<String> downloadFile(@PathVariable String repoId,
+                                                                        @PathVariable String filename) {
 
-.sidebar li {
-    padding: 15px 0;
-    cursor: pointer;
-}
+        Repository repo = repositoryRepository.findById(repoId).orElse(null);
 
-.content {
-    padding: 30px;
-    flex: 1;
-}
+        if (repo != null) {
+            for (com.nexusgit.repository.model.RepoFile file : repo.getFiles()) {
+                if (file.getFilename().equals(filename)) {
 
-.card {
-    background: white;
-    padding: 20px;
-    margin-bottom: 20px;
-    border-radius: 10px;
-}
+                    // Create a "Download" response
+                    return org.springframework.http.ResponseEntity.ok()
+                            // This header forces the browser to download instead of opening
+                            .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                            .body(file.getContent());
+                }
+            }
+        }
+        return org.springframework.http.ResponseEntity.notFound().build();
+    }
+    @PostMapping("/create-repo")
+    public String handleCreateRepo(@ModelAttribute Repository repo,
+                                   @RequestParam("fileUploads") org.springframework.web.multipart.MultipartFile[] files) throws java.io.IOException {
 
-button {
-    padding: 10px 15px;
-    margin-right: 10px;
-    border: none;
-    background-color: #2563eb;
-    color: white;
-    border-radius: 5px;
-    cursor: pointer;
-}
+        // Loop through every uploaded file
+        for (org.springframework.web.multipart.MultipartFile uploadedFile : files) {
+            if (!uploadedFile.isEmpty()) {
+                // Read the file content into a String
+                String content = new String(uploadedFile.getBytes());
+                String filename = uploadedFile.getOriginalFilename();
 
-```
-## 3️⃣ app.js (Main Logic):
-```javascript
-console.log("NexusGit application loaded");
+                // Add it to the repository object
+                RepoFile newFile = new com.nexusgit.repository.model.RepoFile(filename, content);
+                repo.getFiles().add(newFile);
+            }
+        }
 
-function viewReviews() {
-    alert("Displaying AI Reviews for selected Pull Request");
-}
+        // Save everything (Repo info + Files) to MongoDB
+        repositoryRepository.save(repo);
 
-function requestAIReview() {
-    alert("AI Review Requested. Analysis in progress...");
-}
-
-```
-## 4️⃣ auth.js (Authentication Logic):
-```javascript
-function login(username, password) {
-    if (username && password) {
-        console.log("User logged in:", username);
-        return true;
-    } else {
-        alert("Invalid credentials");
-        return false;
+        return "redirect:/dashboard";
+    }
+    // 6. Delete Repository
+    @PostMapping("/repo/{id}/delete")
+    public String deleteRepository(@PathVariable String id) {
+        // Simple delete by ID
+        repositoryRepository.deleteById(id);
+        return "redirect:/dashboard";
     }
 }
 
-function logout() {
-    alert("Logged out successfully");
-    window.location.reload();
+```
+### RepositoryController
+```java
+package com.nexusgit.repository.controller;
+
+import com.nexusgit.repository.dto.CreateRepoRequest;
+import com.nexusgit.repository.model.Repository;
+import com.nexusgit.repository.service.RepositoryService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/repos")
+public class RepositoryController {
+
+    private final RepositoryService repositoryService;
+
+    @Autowired
+    public RepositoryController(RepositoryService repositoryService) {
+        this.repositoryService = repositoryService;
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createRepository(@RequestBody CreateRepoRequest createRepoRequest) {
+
+        // !!! --- TEMPORARY --- !!!
+        // We don't have real user login in this service yet.
+        // For testing, we will "hardcode" the ownerId.
+        // In the future, we will get this from the security token.
+        String tempOwnerId = "temp-user-123";
+
+        try {
+            Repository newRepo = repositoryService.createRepository(
+                    createRepoRequest.getName(),
+                    createRepoRequest.getDescription(),
+                    tempOwnerId // Using our temporary ID for now
+            );
+
+            // If successful, return 200 OK with the new repository object
+            return ResponseEntity.ok(newRepo);
+
+        } catch (RuntimeException e) {
+            // If the service threw an error (like "repo name exists"),
+            // return a 400 Bad Request with the error message.
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+}
+```
+### CreateRepoRequest
+```java
+package com.nexusgit.repository.dto;
+
+import lombok.Data;
+
+@Data
+public class CreateRepoRequest {
+    private String name;
+    private String description;
+
+    // Note: We won't ask the client to send the ownerId.
+    // We will get that from their authentication token in a later step.
+    // For now, we'll just pass it in manually.
 }
 
 ```
-## 5️⃣ aiReview.js (AI Review Simulation)
-```javascript
-function analyzeCode(code) {
-    console.log("Sending code to AI Engine...");
+### RepoFile
+```java
+package com.nexusgit.repository.model;
 
-    let results = [
-        "Null pointer risk detected",
-        "Optimize loop for better performance",
-        "Sensitive data exposure risk",
-        "Follow Java naming conventions"
-    ];
+public class RepoFile {
+    private String filename;
+    private String content; // We will store the code as a simple string
 
-    displayAIResults(results);
+    // Constructors
+    public RepoFile() {}
+    public RepoFile(String filename, String content) {
+        this.filename = filename;
+        this.content = content;
+    }
+
+    // Getters and Setters
+    public String getFilename() { return filename; }
+    public void setFilename(String filename) { this.filename = filename; }
+
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
 }
 
-function displayAIResults(results) {
-    console.log("AI Review Results:");
-    results.forEach((issue, index) => {
-        console.log((index + 1) + ". " + issue);
-    });
+```
+### Repository
+```java
+package com.nexusgit.repository.model;
+
+import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.time.Instant;
+import java.util.ArrayList; // Import for the list
+import java.util.List;      // Import for the list
+
+@Data
+@Document(collection = "repositories")
+public class Repository {
+
+    @Id
+    private String id;
+
+    private String name;
+
+    private String ownerId;
+
+    private String description;
+
+    private boolean isPrivate;
+
+    private Instant createdAt;
+
+    // --- NEW ADDITION: This stores the uploaded files ---
+    // We initialize it with "= new ArrayList<>()" so it is never null
+    private List<RepoFile> files = new ArrayList<>();
+
+    public Repository() {
+        this.createdAt = Instant.now();
+    }
 }
 
+```
+
+### RepositoryRepository
+```java
+package com.nexusgit.repository.repository;
+
+import com.nexusgit.repository.model.Repository;
+import org.springframework.data.mongodb.repository.MongoRepository;
+
+import java.util.List;
+
+public interface RepositoryRepository extends MongoRepository<Repository, String> {
+
+    // Spring Data will automatically build this method:
+    // It finds all Repository documents where the 'ownerId' field matches
+    List<Repository> findByOwnerId(String ownerId);
+
+    // This will find a repository by its name AND its owner's ID
+    // Useful for preventing a user from having two repos with the same name
+    Boolean existsByNameAndOwnerId(String name, String ownerId);
+
+}
+```
+
+### RepositoryService
+```java
+
+package com.nexusgit.repository.service;
+
+import com.nexusgit.repository.model.Repository;
+import com.nexusgit.repository.repository.RepositoryRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class RepositoryService {
+
+    private final RepositoryRepository repositoryRepository;
+
+    @Autowired
+    public RepositoryService(RepositoryRepository repositoryRepository) {
+        this.repositoryRepository = repositoryRepository;
+    }
+
+    /**
+     * Creates and saves a new repository for a user.
+     * @param name The name of the repository.
+     * @param description The description of the repository.
+     * @param ownerId The ID of the user who owns this repository.
+     * @return The newly created and saved Repository object.
+     * @throws RuntimeException if a repository with the same name already exists for this user.
+     */
+    public Repository createRepository(String name, String description, String ownerId) {
+        // 1. Check if a repo with this name already exists for this user
+        if (repositoryRepository.existsByNameAndOwnerId(name, ownerId)) {
+            throw new RuntimeException("Error: A repository with this name already exists.");
+        }
+
+        // 2. Create the new repository object
+        Repository newRepo = new Repository();
+        newRepo.setName(name);
+        newRepo.setDescription(description);
+        newRepo.setOwnerId(ownerId);
+        newRepo.setPrivate(false); // Default to public for now
+
+        // 3. Save the new repository to the database
+        // The createdAt timestamp is automatically set by the model's constructor
+        return repositoryRepository.save(newRepo);
+    }
+}
+```
+
+### RepositoryServiceApplication
+```java
+package com.nexusgit.repository;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class RepositoryServiceApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(RepositoryServiceApplication.class, args);
+	}
+
+}
+
+
+```
+
+## 2. USER AUTH SERVICE
+
+## SecurityConfig
+```java
+package com.nexusgit.userauth.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}
+
+```
+
+## AuthController
+```java
+package com.nexusgit.userauth.controller;
+
+import com.nexusgit.userauth.model.User;
+import com.nexusgit.userauth.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller; // We use Controller, NOT RestController
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+
+@Controller
+public class AuthController {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    // --- REGISTRATION ---
+
+    @GetMapping("/register")
+    public String showRegisterPage() {
+        return "register"; // Looks for register.html
+    }
+
+    @PostMapping("/register")
+    public String registerUser(@ModelAttribute User user) {
+        // Check if user exists (using your cool repository method!)
+        if (userRepository.existsByUsername(user.getUsername())) {
+            return "redirect:/register?error";
+        }
+
+        userRepository.save(user);
+        return "redirect:/login";
+    }
+
+    // --- LOGIN ---
+
+    @GetMapping("/login")
+    public String showLoginPage() {
+        return "login"; // Looks for login.html
+    }
+
+    @PostMapping("/login")
+    public String loginUser(@RequestParam String username, @RequestParam String password, Model model) {
+        System.out.println("----- LOGIN ATTEMPT -----");
+        System.out.println("Trying to login user: " + username);
+        System.out.println("With password: " + password);
+
+        // Find user by name
+        User foundUser = userRepository.findByUsername(username).orElse(null);
+
+        if (foundUser == null) {
+            System.out.println("User NOT found in database!");
+            model.addAttribute("error", "User not found");
+            return "login";
+        }
+
+        System.out.println("User found: " + foundUser.getUsername());
+        System.out.println("DB Password: " + foundUser.getPassword());
+
+        if (foundUser.getPassword().equals(password)) {
+            System.out.println("Password MATCHES! Redirecting...");
+            // SUCCESS: Redirect to the Main Dashboard (Repository Service)
+            return "redirect:http://localhost:8080/dashboard";
+        } else {
+            System.out.println("Password WRONG!");
+            model.addAttribute("error", "Invalid credentials");
+            return "login";
+        }
+    }
+}
+```
+
+## RegisterRequest
+```java
+package com.nexusgit.userauth.dto;
+
+import lombok.Data;
+
+// This DTO defines what the JSON request body should look like
+@Data
+public class RegisterRequest {
+    private String username;
+    private String email;
+    private String password;
+}
+```
+
+## User
+```java
+package com.nexusgit.userauth.model;
+
+import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+@Data
+@Document(collection = "users")
+public class User {
+
+    @Id
+    private String id;
+
+    private String username;
+
+    private String email;
+
+    private String password;
+
+}
+```
+
+## UserRepository
+```java
+package com.nexusgit.userauth.repository;
+
+import com.nexusgit.userauth.model.User;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import java.util.Optional;
+
+public interface UserRepository extends MongoRepository<User, String> {
+
+    // Spring Data MongoDB will automatically create this method for us!
+    // It understands "findBy" + "Username" and builds the query.
+    Optional<User> findByUsername(String username);
+
+    // We will use this to check if a username or email already exists
+    Boolean existsByUsername(String username);
+    Boolean existsByEmail(String email);
+
+}
+```
+
+## UserAuthServiceApplication
+```java
+package com.nexusgit.userauth;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+
+// 1. We EXCLUDE SecurityAutoConfiguration so we don't get locked out by the default login screen.
+// 2. We REMOVED the Mongo exclude, so the Database is now ACTIVE.
+@SpringBootApplication(exclude = {SecurityAutoConfiguration.class})
+public class UserAuthServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(UserAuthServiceApplication.class, args);
+    }
+}
 ```
 ##  LICENSE.txt:
 MIT License:
