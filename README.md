@@ -94,19 +94,30 @@ The architecture consists of a frontend interface, backend server, AI analysis e
 <!--Embed the Output picture at respective places as shown below as shown below-->
 #### Output1 -  Login Page
 
-- This screen allows users to securely log in or register before accessing the NexusGit platform.
+- This screen allows users to securely log in before accessing the NexusGit platform.
+<img width="733" height="497" alt="image" src="https://github.com/user-attachments/assets/2daa9b5c-8444-425a-833a-e0ef29ad42ab" />
 
 
 
-#### Output2 - Developer Dashboard
-- The dashboard displays repositories, recent pull requests, and AI review activity of the developer.
-<img width="1400" height="800" alt="NexusGit_Dashboard_Repositories_PRs" src="https://github.com/user-attachments/assets/80d8d975-5ff7-4b1f-8f89-ab87ce497ec2" />
+#### Output2 - Create Account Page
+- This screen allows users to create account if they doesnt have one before accessing the NexusGit platform.
+<img width="842" height="569" alt="image" src="https://github.com/user-attachments/assets/298db3cc-5a79-4b95-a803-d7ec6df947dd" />
 
 
-#### Output3- AI Code Review
-- This page displays AI-generated suggestions for pull requests, including security warnings and optimization tips.
-<img width="1400" height="800" alt="NexusGit_PR_AI_Review_Page" src="https://github.com/user-attachments/assets/692988af-c266-4bd6-b522-45c419f16e6a" />
 
+#### Output3 - Repository dashboard
+- Shows the list of repositories created so far.
+<img width="1919" height="482" alt="image" src="https://github.com/user-attachments/assets/82ee0682-8f70-47b9-90cd-5acec12446df" />
+
+
+#### Output4 - Creating a new repository 
+- Helps to create new repository within a single click when provided with repository name and its descriptions. You can also upload files and store that in the database.
+<img width="965" height="593" alt="image" src="https://github.com/user-attachments/assets/a0112c82-1c7e-4c95-878a-c7b835345e54" />
+
+
+#### Output5 - Viewing of recently created repository
+- After creating a repository, the user can view the dashboard and check whether the repository is installed or not
+<img width="1919" height="446" alt="image" src="https://github.com/user-attachments/assets/598d986b-b7e0-4bea-a592-85131d5d9bbf" />
 
 #### Performance Metrics
 
